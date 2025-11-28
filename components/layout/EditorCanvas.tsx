@@ -1,0 +1,1 @@
+export {}; // Moved to components/organisms/EditorCanvas.tsx

@@ -1,0 +1,1 @@
+export {}; // Moved to components/organisms/PropertiesPanel.tsx

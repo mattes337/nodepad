@@ -1,0 +1,5 @@
+{
+  "name": "Drydev NodePad AI",
+  "description": "A node-based, collaborative-style blog editor with context-aware Gemini AI integration for text and image generation.",
+  "requestFramePermissions": []
+}
