@@ -77,6 +77,12 @@ export interface NodePadDocument {
     created: string; // ISO Date string
     modified: string; // ISO Date string
     authorId?: string;
+    // Extended Metadata
+    slug?: string;
+    excerpt?: string;
+    tags?: string[];
+    featuredImage?: string;
+    preheader?: string; // For Emails
   };
   blocks: Block[];
 }
@@ -100,6 +106,20 @@ export interface AIService {
     content: string;
     reply: string;
   }>;
-  transformToBlocks: (text: string) => Promise<Block[]>;
+  transformToBlocks: (text: string, additionalInstruction?: string) => Promise<Block[]>;
   analyzeBlock: (block: Block) => Promise<string>;
+}
+
+// Variable Tree Types
+export enum EditorType {
+  HANDLEBARS = 'handlebars',
+  SCRIPT_JS = 'script_js'
+}
+
+export interface VariableNode {
+  key: string;
+  path: string;
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'null';
+  value: any;
+  children?: VariableNode[];
 }

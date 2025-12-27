@@ -84,15 +84,24 @@ export const BlockRenderer: React.FC<BlockProps> = (props) => {
             onDragEnd();
         }}
         onDragOver={(e) => {
-            e.preventDefault();
-            if (!isDragging && !isDragOver && block.type !== 'layout') setIsDragOver(true);
+            // Only capture drag over if it's a block we are moving.
+            // If it is text (from outside or variable tree), let standard behavior happen 
+            // so drop can occur in contentEditable.
+            if (e.dataTransfer.types.includes('node-id')) {
+                e.preventDefault();
+                if (!isDragging && !isDragOver && block.type !== 'layout') setIsDragOver(true);
+            }
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragOver(false);
-            onDrop(block.id);
+            if (e.dataTransfer.types.includes('node-id')) {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(false);
+                onDrop(block.id);
+            }
+            // If dragging variables (text/plain), we do NOT preventDefault here, 
+            // allowing the event to bubble or be handled by the child ContentEditable.
         }}
         className={`group/block relative pl-8 pr-4 ${pyClass} -ml-8 rounded-lg transition-all duration-200 border-l-2 
             ${isActive ? 'bg-white/50 shadow-sm border-brand-500 z-10 ring-1 ring-slate-200' : 'border-transparent hover:bg-slate-50'}

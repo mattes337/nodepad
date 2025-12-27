@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Block, BlockType, User, NodePadDocument, GalleryImage, AIService } from '../types';
 import { createBlock, getBlockDefinition } from '../blocks/registry';
@@ -14,7 +14,8 @@ import { EditorCanvas } from './organisms/EditorCanvas';
 import { ImportModal } from './organisms/ImportModal';
 import { WordPressModal } from './organisms/WordPressModal';
 import { ImageBrowserModal } from './organisms/ImageBrowserModal';
-import { NodePadView } from './NodePadView';
+import { DocumentSettingsModal } from './organisms/DocumentSettingsModal';
+import { ArticleEditorView } from './ArticleEditorView';
 
 // Logic Helpers
 import { 
@@ -27,7 +28,7 @@ import {
   insertBlockInTree 
 } from '../utils/blockUtils';
 
-export interface NodePadProps {
+export interface ArticleEditorProps {
     initialBlocks?: Block[];
     user?: User;
     activeUsers?: User[];
@@ -37,7 +38,7 @@ export interface NodePadProps {
     onLoadClick?: () => void;
 }
 
-export interface NodePadRef {
+export interface ArticleEditorRef {
     setBlocks: (blocks: Block[]) => void;
     getBlocks: () => Block[];
 }
@@ -45,11 +46,11 @@ export interface NodePadRef {
 const DEFAULT_USER: User = { id: 'u1', name: 'You', color: '#3b82f6', avatarUrl: 'https://picsum.photos/32/32' };
 
 const INITIAL_BLOCKS: Block[] = [
-    { id: '1', type: 'h1', content: 'Welcome to NodePad' },
-    { id: '2', type: 'paragraph', content: 'Start typing or use the AI assistant to generate content.' },
+    { id: '1', type: 'h1', content: 'Welcome to Article Editor' },
+    { id: '2', type: 'paragraph', content: 'Start typing your article or use the AI assistant.' },
 ];
 
-export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
+export const ArticleEditor = forwardRef<ArticleEditorRef, ArticleEditorProps>(({
     initialBlocks,
     user = DEFAULT_USER,
     activeUsers = [DEFAULT_USER],
@@ -59,6 +60,15 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
     onLoadClick
 }, ref) => {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks || INITIAL_BLOCKS);
+  
+  // Metadata State
+  const [docMetadata, setDocMetadata] = useState<NodePadDocument['metadata']>({
+      title: 'Untitled Article',
+      created: new Date().toISOString(),
+      modified: new Date().toISOString(),
+      authorId: user.id
+  });
+
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
   const [draggedType, setDraggedType] = useState<BlockType | null>(null);
@@ -67,6 +77,8 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isWordPressModalOpen, setIsWordPressModalOpen] = useState(false);
   const [isImageBrowserOpen, setIsImageBrowserOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const [targetImageBlockId, setTargetImageBlockId] = useState<string | null>(null);
   
   const [rightSidebarTab, setRightSidebarTab] = useState<'properties' | 'ai' | 'variables'>('properties');
@@ -81,6 +93,11 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
   useEffect(() => {
       if (initialBlocks) {
           setBlocks(initialBlocks);
+          // Try to infer title from first H1 if available and title is default
+          const h1 = initialBlocks.find(b => b.type === 'h1');
+          if (h1 && docMetadata.title === 'Untitled Article') {
+              setDocMetadata(prev => ({ ...prev, title: h1.content.replace(/<[^>]*>?/gm, '') }));
+          }
       }
   }, [initialBlocks]);
 
@@ -181,10 +198,8 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
     const doc: NodePadDocument = {
         schemaVersion: '1.0',
         metadata: {
-            title: (blocks.find(b => b.type === 'h1')?.content || '').replace(/<[^>]*>?/gm, '') || 'Untitled',
-            created: new Date().toISOString(),
+            ...docMetadata,
             modified: new Date().toISOString(),
-            authorId: user.id
         },
         blocks: blocks
     };
@@ -193,6 +208,19 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
         onSave(doc);
     }
   };
+
+  const handlePrint = useCallback(() => {
+    // Attempt to focus the current window
+    window.focus();
+    // Wrap in a timeout to ensure browser handles it as a clean user-triggered event
+    setTimeout(() => {
+        try {
+            window.print();
+        } catch (e) {
+            console.warn("Automated printing might be blocked by environment sandbox. You can still use browser print (Cmd+P / Ctrl+P).", e);
+        }
+    }, 200);
+  }, []);
 
   const handleDragStart = (id: string) => {
     setDraggedBlockId(id);
@@ -298,6 +326,7 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
                     onClose={() => setIsWordPressModalOpen(false)}
                     blocks={blocks}
                     onImport={handleWordPressImport}
+                    metadata={{ title: docMetadata.title, excerpt: docMetadata.excerpt }}
                 />
                 <ImageBrowserModal
                     isOpen={isImageBrowserOpen}
@@ -305,6 +334,13 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
                     onSelectImage={handleSelectImage}
                     galleryImages={galleryImages}
                     aiService={aiService}
+                />
+                <DocumentSettingsModal 
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    metadata={docMetadata}
+                    onChange={(meta) => setDocMetadata(prev => ({ ...prev, ...meta }))}
+                    mode="article"
                 />
             </>
         }
@@ -317,6 +353,8 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
                 onImportWP={() => setIsWordPressModalOpen(true)}
                 onLoad={() => onLoadClick && onLoadClick()}
                 onSave={handleSave}
+                onPrint={handlePrint}
+                onSettings={() => setIsSettingsOpen(true)}
             />
         }
         leftSidebar={
@@ -337,7 +375,7 @@ export const NodePad = forwardRef<NodePadRef, NodePadProps>(({
         }
         center={
             isPreview ? (
-                <NodePadView blocks={blocks} user={user} />
+                <ArticleEditorView blocks={blocks} user={user} />
             ) : (
                 <EditorCanvas 
                     blocks={blocks}

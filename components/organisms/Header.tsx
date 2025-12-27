@@ -1,8 +1,7 @@
 import React from 'react';
-import { Sparkles, FileCode, Upload, Save, Download, Eye, Edit3 } from 'lucide-react';
+import { Sparkles, FileCode, Upload, Save, Eye, Edit3, Settings, Printer } from 'lucide-react';
 import { User } from '../../types';
 import { Button } from '../atoms/Button';
-import { Avatar } from '../atoms/Avatar';
 
 interface HeaderProps {
   activeUsers: User[];
@@ -12,9 +11,23 @@ interface HeaderProps {
   onImportWP: () => void;
   onLoad: () => void;
   onSave: () => void;
+  onPrint?: () => void;
+  onSettings?: () => void;
+  hasAI?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeUsers, isPreview, onTogglePreview, onImportAI, onImportWP, onLoad, onSave }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  activeUsers, 
+  isPreview, 
+  onTogglePreview, 
+  onImportAI, 
+  onImportWP, 
+  onLoad, 
+  onSave, 
+  onPrint,
+  onSettings,
+  hasAI = true
+}) => {
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-50 relative shadow-sm">
       <div className="flex items-center gap-3">
@@ -29,9 +42,16 @@ export const Header: React.FC<HeaderProps> = ({ activeUsers, isPreview, onToggle
         <div className="flex items-center gap-1 mr-2">
            {!isPreview && (
                <>
-                <Button variant="brand-ghost" size="sm" icon={Sparkles} onClick={onImportAI} className="mr-1">
-                    <span className="hidden sm:inline">AI Assist</span>
-                </Button>
+                {onSettings && (
+                    <Button variant="ghost" size="sm" icon={Settings} onClick={onSettings} className="mr-1">
+                        <span className="hidden sm:inline">Settings</span>
+                    </Button>
+                )}
+                {hasAI && (
+                  <Button variant="brand-ghost" size="sm" icon={Sparkles} onClick={onImportAI} className="mr-1">
+                      <span className="hidden sm:inline">AI Assist</span>
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" icon={FileCode} onClick={onImportWP} className="mr-1">
                     <span className="hidden sm:inline">WordPress</span>
                 </Button>
@@ -46,6 +66,18 @@ export const Header: React.FC<HeaderProps> = ({ activeUsers, isPreview, onToggle
            
            <div className="h-6 w-px bg-slate-200 mx-2"></div>
            
+           {isPreview && onPrint && (
+              <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  icon={Printer} 
+                  onClick={onPrint}
+                  className="mr-1"
+              >
+                  <span className="hidden sm:inline">Print</span>
+              </Button>
+           )}
+
            <Button 
                 variant={isPreview ? 'secondary' : 'ghost'} 
                 size="sm" 
@@ -55,23 +87,6 @@ export const Header: React.FC<HeaderProps> = ({ activeUsers, isPreview, onToggle
               {isPreview ? 'Back to Edit' : 'Preview'}
            </Button>
         </div>
-
-        {!isPreview && (
-            <>
-                <div className="h-6 w-px bg-slate-200 mx-1"></div>
-                <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                    {activeUsers.map(u => (
-                    <Avatar key={u.id} user={u} />
-                    ))}
-                </div>
-                </div>
-                
-                <Button variant="primary" size="sm" icon={Download}>
-                Publish
-                </Button>
-            </>
-        )}
       </div>
     </header>
   );

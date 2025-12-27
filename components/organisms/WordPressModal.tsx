@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, ArrowRight, Check, FileCode } from 'lucide-react';
+import { Copy, ArrowRight, Check, FileCode, ClipboardList } from 'lucide-react';
 import { Block } from '../../types';
 import { serializeToWordPress, parseWordPressCode } from '../../services/wordpress';
 import { Modal } from '../molecules/Modal';
@@ -10,13 +10,15 @@ interface WordPressModalProps {
   onClose: () => void;
   blocks: Block[];
   onImport: (blocks: Block[]) => void;
+  metadata?: { title?: string, excerpt?: string };
 }
 
 export const WordPressModal: React.FC<WordPressModalProps> = ({ 
   isOpen, 
   onClose, 
   blocks, 
-  onImport 
+  onImport,
+  metadata
 }) => {
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [exportCode, setExportCode] = useState('');
@@ -110,6 +112,26 @@ export const WordPressModal: React.FC<WordPressModalProps> = ({
 
             {activeTab === 'export' ? (
                 <div className="space-y-4 h-full flex flex-col">
+                    {metadata && (metadata.title || metadata.excerpt) && (
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm space-y-2">
+                             <div className="flex items-center gap-2 text-slate-500 font-medium">
+                                 <ClipboardList className="w-4 h-4" /> Post Metadata
+                             </div>
+                             {metadata.title && (
+                                 <div className="flex gap-2">
+                                     <span className="text-slate-400 w-16 text-xs uppercase font-bold pt-1">Title</span>
+                                     <div className="flex-1 bg-white border border-slate-200 px-2 py-1 rounded text-slate-800 select-all">{metadata.title}</div>
+                                 </div>
+                             )}
+                             {metadata.excerpt && (
+                                 <div className="flex gap-2">
+                                     <span className="text-slate-400 w-16 text-xs uppercase font-bold pt-1">Excerpt</span>
+                                     <div className="flex-1 bg-white border border-slate-200 px-2 py-1 rounded text-slate-800 select-all">{metadata.excerpt}</div>
+                                 </div>
+                             )}
+                        </div>
+                    )}
+
                     <div className="text-sm text-slate-600">
                         Copy this code and paste it into the WordPress Block Editor (select "Code Editor" view).
                     </div>
@@ -117,7 +139,7 @@ export const WordPressModal: React.FC<WordPressModalProps> = ({
                         <textarea 
                             readOnly
                             value={exportCode}
-                            className="w-full h-64 p-4 bg-slate-900 text-blue-100 rounded-xl font-mono text-xs leading-relaxed focus:outline-none resize-none"
+                            className="w-full h-full p-4 bg-slate-900 text-blue-100 rounded-xl font-mono text-xs leading-relaxed focus:outline-none resize-none"
                         />
                         <button 
                             onClick={handleCopy}

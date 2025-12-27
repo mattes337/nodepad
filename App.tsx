@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { NodePad, NodePadRef } from './components/NodePad';
-import { NodePadView } from './components/NodePadView';
+import { ArticleEditor, ArticleEditorRef } from './components/ArticleEditor';
+import { EmailEditor, EmailEditorRef } from './components/EmailEditor';
 import { NodePadDocument, User, GalleryImage, AIService, Block } from './types';
 import { generateImage, processAIRequest, transformToBlocks, analyzeBlock } from './services/gemini';
+import { FileText, Mail } from 'lucide-react';
 
 const MOCK_USERS: User[] = [
   { id: 'u1', name: 'You', color: '#3b82f6', avatarUrl: 'https://picsum.photos/32/32' },
@@ -21,7 +22,7 @@ const GALLERY_IMAGES: GalleryImage[] = [
   { id: 'g8', filename: 'mountain-hike.jpg', url: 'https://picsum.photos/id/80/800/600', tags: ['mountain', 'hiking', 'outdoor', 'travel'] },
 ];
 
-const INITIAL_BLOCKS: Block[] = [
+const INITIAL_ARTICLE_BLOCKS: Block[] = [
   { id: '1', type: 'h1', content: 'The Future of Generative AI' },
   { id: '2', type: 'paragraph', content: 'Artificial intelligence has evolved rapidly in recent years.' },
   { 
@@ -41,11 +42,19 @@ const INITIAL_BLOCKS: Block[] = [
   { id: '4', type: 'paragraph', content: 'With tools like Gemini, we can now augment human creativity in unprecedented ways.' },
 ];
 
+const INITIAL_EMAIL_BLOCKS: Block[] = [
+    { id: 'e1', type: 'image', content: '', metadata: { url: 'https://picsum.photos/600/200', alt: 'Banner' } },
+    { id: 'e2', type: 'h1', content: 'Weekly Update' },
+    { id: 'e3', type: 'paragraph', content: 'Hello Team,<br>Here are the updates for this week.' },
+    { id: 'e4', type: 'link', content: 'View Full Report', metadata: { url: 'https://example.com' } }
+];
+
 const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const nodePadRef = useRef<NodePadRef>(null);
-  const [viewMode, setViewMode] = useState<'editor' | 'viewer'>('editor');
-  const [currentBlocks, setCurrentBlocks] = useState<Block[]>(INITIAL_BLOCKS);
+  const articleRef = useRef<ArticleEditorRef>(null);
+  const emailRef = useRef<EmailEditorRef>(null);
+  
+  const [editorMode, setEditorMode] = useState<'article' | 'email'>('article');
 
   const aiService: AIService = {
     generateImage,
@@ -81,7 +90,11 @@ const App: React.FC = () => {
               const parsed = JSON.parse(content) as NodePadDocument;
               
               if (parsed && Array.isArray(parsed.blocks)) {
-                  nodePadRef.current?.setBlocks(parsed.blocks);
+                  if (editorMode === 'article') {
+                      articleRef.current?.setBlocks(parsed.blocks);
+                  } else {
+                      emailRef.current?.setBlocks(parsed.blocks);
+                  }
                   if (fileInputRef.current) fileInputRef.current.value = '';
               } else {
                   alert('Invalid file format: Missing blocks array.');
@@ -94,46 +107,39 @@ const App: React.FC = () => {
       reader.readAsText(file);
   };
 
-  const handleViewChange = (mode: 'editor' | 'viewer') => {
-      if (mode === 'viewer' && nodePadRef.current) {
-          // Capture current state from editor before switching
-          setCurrentBlocks(nodePadRef.current.getBlocks());
-      }
-      setViewMode(mode);
-  };
-
   return (
     <div className="h-screen flex flex-col bg-slate-50">
-        {/* Top Navigation Bar */}
-        <div className="flex justify-center items-center gap-4 p-2 bg-white border-b border-slate-200 shrink-0 shadow-sm z-50">
+        {/* Top Navigation Bar - Mode Switcher */}
+        <div className="flex justify-center items-center gap-4 p-2 bg-slate-900 border-b border-slate-800 shrink-0 shadow-md z-50">
             <button
-                onClick={() => handleViewChange('editor')}
-                className={`px-6 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    viewMode === 'editor' 
-                    ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20' 
-                    : 'text-slate-500 hover:bg-slate-100'
+                onClick={() => setEditorMode('article')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                    editorMode === 'article' 
+                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20 ring-1 ring-white/20' 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
             >
-                Editor
+                <FileText className="w-4 h-4" />
+                Article Editor
             </button>
             <button
-                onClick={() => handleViewChange('viewer')}
-                className={`px-6 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    viewMode === 'viewer' 
-                    ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20' 
-                    : 'text-slate-500 hover:bg-slate-100'
+                onClick={() => setEditorMode('email')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                    editorMode === 'email' 
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20 ring-1 ring-white/20' 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
             >
-                Viewer
+                <Mail className="w-4 h-4" />
+                Email Editor
             </button>
         </div>
 
         <div className="flex-1 overflow-hidden relative">
-            {/* Editor View - Kept mounted to preserve internal state/undo history */}
-            <div className={`h-full w-full ${viewMode === 'editor' ? 'block' : 'hidden'}`}>
-                <NodePad
-                    ref={nodePadRef}
-                    initialBlocks={INITIAL_BLOCKS}
+            {editorMode === 'article' ? (
+                <ArticleEditor
+                    ref={articleRef}
+                    initialBlocks={INITIAL_ARTICLE_BLOCKS}
                     user={MOCK_USERS[0]}
                     activeUsers={MOCK_USERS}
                     galleryImages={GALLERY_IMAGES}
@@ -141,16 +147,17 @@ const App: React.FC = () => {
                     onSave={handleSave}
                     onLoadClick={handleLoadClick}
                 />
-            </div>
-
-            {/* Viewer View */}
-            {viewMode === 'viewer' && (
-                <div className="h-full w-full overflow-y-auto bg-white animate-in fade-in duration-300">
-                    <NodePadView 
-                        blocks={currentBlocks}
-                        user={MOCK_USERS[0]}
-                    />
-                </div>
+            ) : (
+                <EmailEditor
+                    ref={emailRef}
+                    initialBlocks={INITIAL_EMAIL_BLOCKS}
+                    user={MOCK_USERS[0]}
+                    activeUsers={MOCK_USERS}
+                    galleryImages={GALLERY_IMAGES}
+                    aiService={aiService}
+                    onSave={handleSave}
+                    onLoadClick={handleLoadClick}
+                />
             )}
         </div>
 

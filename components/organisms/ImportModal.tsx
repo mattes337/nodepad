@@ -8,10 +8,11 @@ interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (blocks: Block[]) => void;
-  aiService: AIService;
+  aiService?: AIService;
+  variableContext?: Record<string, any>;
 }
 
-export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, aiService }) => {
+export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, aiService, variableContext }) => {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,12 +29,39 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   };
 
   const handleProcess = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !aiService) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      const blocks = await aiService.transformToBlocks(text);
+      let instruction = '';
+      if (variableContext) {
+          const keys: string[] = [];
+          const extractKeys = (obj: any, prefix = '') => {
+              Object.keys(obj).forEach(k => {
+                  if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+                      extractKeys(obj[k], prefix ? `${prefix}.${k}` : k);
+                  } else {
+                      keys.push(prefix ? `${prefix}.${k}` : k);
+                  }
+              });
+          };
+          extractKeys(variableContext);
+          
+          instruction = `
+          You are an expert email marketing assistant.
+          The user is asking you to generate a newsletter or email content.
+          
+          AVAILABLE VARIABLES (Handlebars format):
+          ${keys.map(k => `- {{ ${k} }}`).join('\n')}
+          
+          INSTRUCTION:
+          - Use these variables where appropriate in the content (e.g. "Hi {{ recipient.firstName }}").
+          - Output standard Block JSON structure.
+          `;
+      }
+
+      const blocks = await aiService.transformToBlocks(text, instruction);
       if (blocks && blocks.length > 0) {
         onImport(blocks);
         onClose();
@@ -57,16 +85,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
             <Button variant="secondary" onClick={onClose}>
                 Cancel
             </Button>
-            <Button 
-                variant="primary"
-                onClick={handleProcess}
-                disabled={isLoading || !text.trim()}
-                isLoading={isLoading}
-            >
-                {!isLoading && <Sparkles className="w-4 h-4" />}
-                <span>Generate Document</span>
-                {!isLoading && <ArrowRight className="w-4 h-4 opacity-50" />}
-            </Button>
+            {aiService && (
+                <Button 
+                    variant="primary"
+                    onClick={handleProcess}
+                    disabled={isLoading || !text.trim()}
+                    isLoading={isLoading}
+                >
+                    {!isLoading && <Sparkles className="w-4 h-4" />}
+                    <span>Generate Document</span>
+                    {!isLoading && <ArrowRight className="w-4 h-4 opacity-50" />}
+                </Button>
+            )}
         </div>
     </div>
   );
@@ -78,7 +108,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         title={
             <>
                 <Sparkles className="w-5 h-5 text-brand-600" />
-                Import with AI
+                {variableContext ? 'Generate Email with AI' : 'Import with AI'}
             </>
         }
         footer={renderFooter()}
@@ -101,7 +131,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
             <div className="relative">
                 <textarea 
                     className="w-full h-72 p-5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none resize-none font-mono text-sm leading-relaxed text-slate-700 placeholder-slate-400"
-                    placeholder="# Paste your article, notes, or markdown here...&#10;&#10;The AI will automatically detect:&#10;- Headings&#10;- Lists&#10;- Tables&#10;- Quotes"
+                    placeholder={variableContext 
+                        ? "Describe the email you want to generate. e.g. 'Write a weekly newsletter welcoming {{ recipient.firstName }} and mentioning our company {{ company.name }}...'" 
+                        : "# Paste your article, notes, or markdown here...\n\nThe AI will automatically detect:\n- Headings\n- Lists\n- Tables\n- Quotes"}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                 />

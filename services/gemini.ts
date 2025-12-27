@@ -178,13 +178,15 @@ export const analyzeBlock = async (block: Block): Promise<string> => {
     }
 }
 
-export const transformToBlocks = async (text: string): Promise<Block[]> => {
+export const transformToBlocks = async (text: string, additionalInstruction: string = ''): Promise<Block[]> => {
     const client = getClient();
     const blockTypes = Object.keys(BLOCK_REGISTRY);
 
     const prompt = `
     Convert the provided text into a structured JSON array of Block objects.
     
+    ${additionalInstruction}
+
     CRITICAL RULES:
     1. **Tables**: usage of HTML <table> tags in 'content' is STRICTLY PROHIBITED. You MUST use the 'table' block type and populate the 'tableContent' 2D array. If the input contains HTML tables, parse them into this structure.
     2. **Links**: If a line is primarily a link (with optional title/desc), use the 'link' type.
